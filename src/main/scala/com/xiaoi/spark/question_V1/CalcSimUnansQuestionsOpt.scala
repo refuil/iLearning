@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.{CalSimilar, HadoopOpsUtil, LuceneUtil, Segment}
+import com.xiaoi.common.{CalSimilar, HDFSUtil, LuceneUtil, Segment}
 import com.xiaoi.spark.util.UnansQuesUtil
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -275,9 +275,9 @@ object CalcSimUnansQuestionsOpt {
     val highSimilarity = params.highSimilarity
     val useLucene = params.useLucene
 
-    HadoopOpsUtil.removeOrBackup(removeMode, dfsUri , outputPath )
-    HadoopOpsUtil.removeOrBackup(removeMode, dfsUri , similaryIndexPath )
-    HadoopOpsUtil.removeOrBackup(removeMode, dfsUri , relatedCntPath )
+    HDFSUtil.removeOrBackup(removeMode, dfsUri , outputPath )
+    HDFSUtil.removeOrBackup(removeMode, dfsUri , similaryIndexPath )
+    HDFSUtil.removeOrBackup(removeMode, dfsUri , relatedCntPath )
 
     val domainList = Source.fromFile(domainPath).getLines().toList.map(_.toLowerCase()).filter(_.trim.length > 0)
     var map:Map[String,Int] = Map()

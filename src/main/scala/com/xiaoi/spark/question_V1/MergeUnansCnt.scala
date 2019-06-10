@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.HadoopOpsUtil
+import com.xiaoi.common.HDFSUtil
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
 
@@ -28,7 +28,7 @@ object MergeUnansCnt {
     val sc = new SparkContext(conf)
 
     //删除输出路径
-    HadoopOpsUtil.removeOrBackup(removeMode,dfsUri,outputPath)
+    HDFSUtil.removeOrBackup(removeMode,dfsUri,outputPath)
 
     // 昨日未回答问题统计(ques, cnt0, cnt11)
     val oneday_data = sc.textFile(onedayInput).map(x => {

@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.{CalSimilar, HadoopOpsUtil, LuceneUtil, Segment}
+import com.xiaoi.common.{CalSimilar, HDFSUtil, LuceneUtil, Segment}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -204,8 +204,8 @@ object CalcSimQuestionsOpt {
       val useLucene = params.useLucene
 
 
-      HadoopOpsUtil.removeOrBackup(removeMode, dfsUri , outputPath )
-      HadoopOpsUtil.removeOrBackup(removeMode, dfsUri , recommQuesPath )
+      HDFSUtil.removeOrBackup(removeMode, dfsUri , outputPath )
+      HDFSUtil.removeOrBackup(removeMode, dfsUri , recommQuesPath )
 
       if(useKnn) {
         val conf = new SparkConf().setAppName("CalcSimQuestions")

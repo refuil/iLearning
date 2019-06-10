@@ -2,7 +2,7 @@ package com.xiaoi.spark.question
 
 import com.xiaoi.conf.ConfigurationManager
 import com.xiaoi.constant.Constants
-import com.xiaoi.common.{DBUtil, DateUtil, HadoopOpsUtil, StrUtil}
+import com.xiaoi.common.{DBUtil, DateUtil, HDFSUtil, StrUtil}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
@@ -891,8 +891,8 @@ object WriteIntoDB {
     }
 
     parser.parse(args, defaultParams).map {params =>
-      if (HadoopOpsUtil.exists(params.dfsUri, params.output_path)) {
-        HadoopOpsUtil.removeDir(params.dfsUri, params.output_path)
+      if (HDFSUtil.exists(params.dfsUri, params.output_path)) {
+        HDFSUtil.removeDir(params.dfsUri, params.output_path)
       }
       run(params)
     }.getOrElse {

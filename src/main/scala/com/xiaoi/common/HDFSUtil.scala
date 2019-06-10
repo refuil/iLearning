@@ -2,16 +2,31 @@ package com.xiaoi.common
 
 import java.text.SimpleDateFormat
 import java.util.Date
+import org.apache.hadoop.fs.FileSystem
 
 /**
  * Created by ligz on 15/9/11.
  * Modified History 增加dfsURI为空的判断，当dfsURI为空读取当前系统HDFS配置
  */
-object HadoopOpsUtil {
+object HDFSUtil {
+
+  def removeDir(dir : String): Unit = {
+    val dfsURI = dir
+    val hadoopConf = new org.apache.hadoop.conf.Configuration()
+    val hdfs = if("".equals(dfsURI)) FileSystem.get(hadoopConf)
+    else FileSystem.get(new java.net.URI(dfsURI), hadoopConf)
+    // Delete the existing path, ignore any exceptions thrown if the path doesn't exist
+    try {
+      hdfs.delete(new org.apache.hadoop.fs.Path(dir), true)
+    } catch {
+      case _: Throwable => {}
+    }
+  }
 
   def removeDir(dfsURI : String, dir : String): Unit = {
     val hadoopConf = new org.apache.hadoop.conf.Configuration()
-    val hdfs = if("".equals(dfsURI)) FileSystem.get(hadoopConf) else FileSystem.get(new java.net.URI(dfsURI), hadoopConf)
+    val hdfs = if("".equals(dfsURI)) FileSystem.get(hadoopConf)
+            else FileSystem.get(new java.net.URI(dfsURI), hadoopConf)
     // Delete the existing path, ignore any exceptions thrown if the path doesn't exist
     try {
       hdfs.delete(new org.apache.hadoop.fs.Path(dir), true)
@@ -66,9 +81,9 @@ object HadoopOpsUtil {
   def removeOrBackup(removeMode: Boolean, dfsURI : String, dir : String): Unit = {
     if (exists(dfsURI, dir)) {
       if (removeMode) {
-        HadoopOpsUtil.removeDir(dfsURI, dir)
+        HDFSUtil.removeDir(dfsURI, dir)
       } else {
-        HadoopOpsUtil.backupDir(dfsURI, dir)
+        HDFSUtil.backupDir(dfsURI, dir)
       }
     }
   }

@@ -1,7 +1,7 @@
 package com.xiaoi.spark.question
 
 import com.xiaoi.spark.util.UnansQuesUtil
-import com.xiaoi.common.{HadoopOpsUtil, InputPathUtil}
+import com.xiaoi.common.{HDFSUtil, InputPathUtil}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
@@ -102,11 +102,11 @@ object GetFaqQuesMapping {
     val excludeFaqsPath = params.excludeFaqsPath
     val outputPartNum = params.outputPartitionNum
 
-    HadoopOpsUtil.removeOrBackup(removeMode,dfsUri,recentlyQuestionsPath)
-    HadoopOpsUtil.removeOrBackup(removeMode,dfsUri,faqMappingPath)
+    HDFSUtil.removeOrBackup(removeMode,dfsUri,recentlyQuestionsPath)
+    HDFSUtil.removeOrBackup(removeMode,dfsUri,faqMappingPath)
 
     // 排除标准问的文件路径
-    val excludeFaqs = if (HadoopOpsUtil.exists(dfsUri, excludeFaqsPath))
+    val excludeFaqs = if (HDFSUtil.exists(dfsUri, excludeFaqsPath))
       sc.textFile(excludeFaqsPath).filter(_.trim.length > 0).collect()
     else Array[String]()
 

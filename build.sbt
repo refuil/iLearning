@@ -36,3 +36,8 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.1",
   "org.scalacheck" %% "scalacheck" % "1.12.2" % "test",
   "com.holdenkarau" %% "spark-testing-base" % s"1.6.1_0.7.0" % "test")
+libraryDependencies ++= Seq(
+  "org.json4s" %% "json4s-jackson" % "3.2.10" withSources(),
+  "org.codehaus.jettison" % "jettison" % "1.1",
+  "org.ini4j" % "ini4j" % "0.5.4"
+)

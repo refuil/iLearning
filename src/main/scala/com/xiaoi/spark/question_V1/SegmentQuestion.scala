@@ -81,11 +81,11 @@ object SegmentQuestion {
 
     }
     parser.parse(args, defaultParams).map {params =>
-      if (HadoopOpsUtil.exists(params.output_path, params.output_path)) {
-        HadoopOpsUtil.removeDir(params.output_path, params.output_path)
+      if (HDFSUtil.exists(params.output_path, params.output_path)) {
+        HDFSUtil.removeDir(params.output_path, params.output_path)
       }
-      if (HadoopOpsUtil.exists(params.test_path, params.test_path)) {
-        HadoopOpsUtil.removeDir(params.test_path, params.test_path)
+      if (HDFSUtil.exists(params.test_path, params.test_path)) {
+        HDFSUtil.removeDir(params.test_path, params.test_path)
       }
       run(params)
     }.getOrElse {

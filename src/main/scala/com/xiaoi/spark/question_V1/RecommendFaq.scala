@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.HadoopOpsUtil
+import com.xiaoi.common.HDFSUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
@@ -223,8 +223,8 @@ object RecommendFaq {
     val conf = new SparkConf().setAppName("RecommFaq")
     val sc = new SparkContext(conf)
     //删除输出路径
-    HadoopOpsUtil.removeOrBackup(removeMode,dfsUri,knnRecommPath)
-    HadoopOpsUtil.removeOrBackup(removeMode,dfsUri,mergedRecommPath)
+    HDFSUtil.removeOrBackup(removeMode,dfsUri,knnRecommPath)
+    HDFSUtil.removeOrBackup(removeMode,dfsUri,mergedRecommPath)
 
     //计算KNN （未回答问题，标准问，次数）
     val knn_result = if(useKnn) getKnnRecommend(params, sc) else sc.makeRDD(List[String]())

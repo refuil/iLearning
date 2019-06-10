@@ -1,7 +1,7 @@
 package com.xiaoi.spark.question
 
 import com.xiaoi.spark.util.UnansQuesUtil
-import com.xiaoi.common.{HadoopOpsUtil, InputPathUtil, Segment}
+import com.xiaoi.common.{HDFSUtil, InputPathUtil, Segment}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.{DateTime, Days}
@@ -201,7 +201,7 @@ object SemanticInfo {
     val input_data = sc.textFile(InputPathUtil.getInputPath(params.days, fromD.plusDays(1), params.inputPath)).cache()
     val yesterday_input = params.inputPath + "/" + fromD.toString("yyyy/MM/dd")
 
-    val bc_unclear_q = if (HadoopOpsUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
+    val bc_unclear_q = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
       val unclear_q = sc.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect().toList
       sc.broadcast(unclear_q)
     } else null
@@ -558,21 +558,21 @@ object SemanticInfo {
       }
     }
     parser.parse(args, defaultParams).map{params =>
-      if (HadoopOpsUtil.exists(params.dfsUri, params.manual_cnt)) {
+      if (HDFSUtil.exists(params.dfsUri, params.manual_cnt)) {
         if (params.removeMode) {
-          HadoopOpsUtil.removeDir(params.dfsUri, params.manual_cnt)
+          HDFSUtil.removeDir(params.dfsUri, params.manual_cnt)
         } else {
-          HadoopOpsUtil.backupDir(params.dfsUri, params.manual_cnt)
+          HDFSUtil.backupDir(params.dfsUri, params.manual_cnt)
         }
       }
-      if(HadoopOpsUtil.exists(params.dfsUri, params.manual_weight))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.manual_weight)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.chat_list))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.chat_list)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.suggest_hit))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.suggest_hit)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.platform_info))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.platform_info)
+      if(HDFSUtil.exists(params.dfsUri, params.manual_weight))
+        HDFSUtil.removeDir(params.dfsUri, params.manual_weight)
+      if (HDFSUtil.exists(params.dfsUri, params.chat_list))
+        HDFSUtil.removeDir(params.dfsUri, params.chat_list)
+      if (HDFSUtil.exists(params.dfsUri, params.suggest_hit))
+        HDFSUtil.removeDir(params.dfsUri, params.suggest_hit)
+      if (HDFSUtil.exists(params.dfsUri, params.platform_info))
+        HDFSUtil.removeDir(params.dfsUri, params.platform_info)
       run(params)
     }.getOrElse {
       sys.exit(1)

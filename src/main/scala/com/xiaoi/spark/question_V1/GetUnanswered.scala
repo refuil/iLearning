@@ -3,7 +3,7 @@ package com.xiaoi.spark.question
 import com.xiaoi.conf.ConfigurationManager
 import com.xiaoi.constant.Constants
 import com.xiaoi.spark.util.UnansQuesUtil
-import com.xiaoi.common.{HadoopOpsUtil, InputPathUtil}
+import com.xiaoi.common.{HDFSUtil, InputPathUtil}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
@@ -72,12 +72,12 @@ object GetUnanswered {
     val ansTypes = params.ansTypes.replaceAll("\\s+", "").split(",").toList
 
     // 不能认作回答良好的答案(包含:无法解答)的文件路径
-    val bc_unclear = if (HadoopOpsUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
+    val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
       val unclear = sc.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
       sc.broadcast(unclear)
     } else null
 
-    val bc_ignored = if (HadoopOpsUtil.exists(params.dfsUri, params.ignoredQuesPath)) {
+    val bc_ignored = if (HDFSUtil.exists(params.dfsUri, params.ignoredQuesPath)) {
       val ignored_ques = sc.textFile(params.ignoredQuesPath)
         .map(UnansQuesUtil.ignoreQuesSimplify(_))
         .filter(_.length > 0).distinct.collect()
@@ -188,7 +188,7 @@ object GetUnanswered {
       .cache()
 
     // 被认作是未回答的标准问(比如:电脑反问,手机反问,用户描述不清楚)的文件路径
-    val bc_excludeFaqs = if (HadoopOpsUtil.exists(params.dfsUri, params.excludeFaqsPath)) {
+    val bc_excludeFaqs = if (HDFSUtil.exists(params.dfsUri, params.excludeFaqsPath)) {
       val excludeFaqs = sc.textFile(params.excludeFaqsPath).filter(_.trim.length > 0).collect()
       sc.broadcast(excludeFaqs)
     } else null
@@ -198,12 +198,12 @@ object GetUnanswered {
     val bc_domainWords = if (domainWords.size > 0) sc.broadcast(domainWords) else null
 
     // 不能认作回答良好的答案(包含:无法解答)的文件路径
-    val bc_unclear = if (HadoopOpsUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
+    val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
       val unclear = sc.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
       sc.broadcast(unclear)
     } else null
 
-    val bc_ignored = if (HadoopOpsUtil.exists(params.dfsUri, params.ignoredQuesPath)) {
+    val bc_ignored = if (HDFSUtil.exists(params.dfsUri, params.ignoredQuesPath)) {
       val ignored_ques = sc.textFile(params.ignoredQuesPath)
         .map(UnansQuesUtil.ignoreQuesSimplify(_))
         .filter(_.length > 0).distinct.collect()
@@ -260,13 +260,13 @@ object GetUnanswered {
     val ansTypes = params.ansTypes.replaceAll("\\s+", "").split(",").map(_.toInt).toList
 
     // 被认作是未回答的标准问(比如:电脑反问,手机反问,用户描述不清楚)的文件路径
-    val bc_excludeFaqs = if (HadoopOpsUtil.exists(params.dfsUri, params.excludeFaqsPath)) {
+    val bc_excludeFaqs = if (HDFSUtil.exists(params.dfsUri, params.excludeFaqsPath)) {
       val excludeFaqs = sc.textFile(params.excludeFaqsPath).filter(_.trim.length > 0).collect()
       sc.broadcast(excludeFaqs)
     } else null
 
     // 不能认作回答良好的答案(包含:无法解答)的文件路径
-    val bc_unclear = if (HadoopOpsUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
+    val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
       val unclear = sc.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
       sc.broadcast(unclear)
     } else null
@@ -378,12 +378,12 @@ object GetUnanswered {
     }
 
     parser.parse(args, defaultParams).map {params =>
-      HadoopOpsUtil.removeOrBackup(params.dfsUri, params.recent_unans)
-      HadoopOpsUtil.removeOrBackup(params.removeMode, params.dfsUri, params.oneDayUnanswer)
-      HadoopOpsUtil.removeOrBackup(params.removeMode, params.dfsUri, params.quesMapPath)
-      HadoopOpsUtil.removeOrBackup(params.removeMode, params.dfsUri, params.dayCntPath)
-      HadoopOpsUtil.removeOrBackup(params.removeMode, params.dfsUri, params.weekCntPath)
-      HadoopOpsUtil.removeOrBackup(params.removeMode, params.dfsUri, params.monthCntPath)
+      HDFSUtil.removeOrBackup(params.dfsUri, params.recent_unans)
+      HDFSUtil.removeOrBackup(params.removeMode, params.dfsUri, params.oneDayUnanswer)
+      HDFSUtil.removeOrBackup(params.removeMode, params.dfsUri, params.quesMapPath)
+      HDFSUtil.removeOrBackup(params.removeMode, params.dfsUri, params.dayCntPath)
+      HDFSUtil.removeOrBackup(params.removeMode, params.dfsUri, params.weekCntPath)
+      HDFSUtil.removeOrBackup(params.removeMode, params.dfsUri, params.monthCntPath)
 
       run(params)
     }.getOrElse {

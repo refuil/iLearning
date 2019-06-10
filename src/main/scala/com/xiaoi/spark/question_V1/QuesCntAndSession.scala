@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.{HadoopOpsUtil, InputPathUtil}
+import com.xiaoi.common.{HDFSUtil, InputPathUtil}
 import com.xiaoi.spark.util.UnansQuesUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -20,7 +20,7 @@ object QuesCntAndSession {
     // 处理一天数据或者最近n天数据
     val fromD = InputPathUtil.getTargetDate(params.targetDate)
     val input_data = sc.textFile(InputPathUtil.getInputPath(params.days, fromD.plusDays(1), params.inputPath)).cache()
-    val bc_unclear = if (HadoopOpsUtil.exists(params.dfsUri, params.unclearPath)) {
+    val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearPath)) {
       val unclear = sc.textFile(params.unclearPath).filter(_.trim.length > 0).collect()
       sc.broadcast(unclear)
     } else null
@@ -259,18 +259,18 @@ object QuesCntAndSession {
     }
 
     parser.parse(args, defaultParams).map {params =>
-      if(HadoopOpsUtil.exists(params.dfsUri, params.cnt_unans))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.cnt_unans)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.cnt_sim_unans))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.cnt_sim_unans)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.sid_unans))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.sid_unans)
-      if(HadoopOpsUtil.exists(params.dfsUri, params.sid_sim_unans))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.sid_sim_unans)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.sidPath))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.sidPath)
-      if (HadoopOpsUtil.exists(params.dfsUri, params.detailPath))
-        HadoopOpsUtil.removeDir(params.dfsUri, params.detailPath)
+      if(HDFSUtil.exists(params.dfsUri, params.cnt_unans))
+        HDFSUtil.removeDir(params.dfsUri, params.cnt_unans)
+      if (HDFSUtil.exists(params.dfsUri, params.cnt_sim_unans))
+        HDFSUtil.removeDir(params.dfsUri, params.cnt_sim_unans)
+      if (HDFSUtil.exists(params.dfsUri, params.sid_unans))
+        HDFSUtil.removeDir(params.dfsUri, params.sid_unans)
+      if(HDFSUtil.exists(params.dfsUri, params.sid_sim_unans))
+        HDFSUtil.removeDir(params.dfsUri, params.sid_sim_unans)
+      if (HDFSUtil.exists(params.dfsUri, params.sidPath))
+        HDFSUtil.removeDir(params.dfsUri, params.sidPath)
+      if (HDFSUtil.exists(params.dfsUri, params.detailPath))
+        HDFSUtil.removeDir(params.dfsUri, params.detailPath)
 
       run(params)
     }.getOrElse {
