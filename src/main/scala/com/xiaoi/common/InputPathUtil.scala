@@ -32,6 +32,16 @@ object InputPathUtil {
     validInputs.mkString(",")
   }
 
+  def getInputPathArray(days: Int, fromD: DateTime, rootPath: String) = {
+    val darr =
+      for (d <- 1 to days)
+        yield rootPath + "/" + fromD.plusDays(0 - d).toString(dateFormat)
+    val validInputs = for(f <- darr;if (HDFSUtil.exists(rootPath, f))) yield f
+    println("input path:")
+    println(validInputs.mkString("\n"))
+    validInputs.toArray
+  }
+
   /**
     * 获取输入路径,根路径为path,
     * period可以按天指定,例如 10d, 30d
