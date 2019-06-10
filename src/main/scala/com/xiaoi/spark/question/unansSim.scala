@@ -8,7 +8,6 @@ object unansSim extends BaseOffline {
     val spark = SparkSession.builder().getOrCreate()
 
 
-
     val path = ""
     val date = spark.sparkContext.textFile(path)
     val av = spark.read.format("csv").load(path)
@@ -17,10 +16,24 @@ object unansSim extends BaseOffline {
 
     val yesterday = InputPathUtil.getTargetDate("0")
     val recent = spark.read.csv(
-      InputPathUtil.getInputPath(params.days,yesterday.plusDays(1),params.inputPath)).
+      InputPathUtil.getInputPath(params.days, yesterday.plusDays(1), params.inputPath)).
       cache()
 
-
+    var df = spark.read.format("com.databricks.spark.csv")
+      .schema(customSchema)
+      .option("header", hasHeader.toString)
+      .option("inferSchema", "false") //是否自动推到内容的类型
+      .option("delimiter", delimiter) //分隔符，默认为 ,
+      .load(paths(0))
+    for (i <- 1 until paths.length) {
+      val df_tmp = spark.read.format("com.databricks.spark.csv")
+        .schema(customSchema)
+        .option("header", hasHeader.toString)
+        .option("inferSchema", "false") //是否自动推到内容的类型
+        .option("delimiter", delimiter) //分隔符，默认为 ,
+        .load(paths(i))
+      df = df.unionAll(df_tmp)
+    }
 
 
   }
