@@ -12,6 +12,16 @@ package com.xiaoi.common
   * todo: 与jieba分词比较
   */
 
+import com.huaban.analysis.jieba.JiebaSegmenter
+import com.xiaoi.conf.ConfManager
+import com.xiaoi.constant.Constants
+import org.ansj.library.UserDefineLibrary
+import org.ansj.recognition.impl.FilterRecognition
+import org.ansj.splitWord.analysis.{DicAnalysis, NlpAnalysis, ToAnalysis}
+import org.nlpcn.commons.lang.tire.domain.Value
+import org.nlpcn.commons.lang.tire.library.Library
+
+import scala.collection.JavaConversions._
 import scala.io.Source
 
 object Segment {
@@ -147,7 +157,7 @@ object Segment {
     * @return
     */
   def jieba_analysis(input: String, separator: String): String ={
-    val stopWords = ConfigurationManager.getString(Constants.STOP_WORDS).split("\\|", -1)
+    val stopWords = ConfManager.getString(Constants.STOP_WORDS).split("\\|", -1)
     val segment = new JiebaSegmenter
     val seg_list = segment.sentenceProcess(input)
 //    println(seg_list(0))

@@ -1,6 +1,9 @@
 package com.xiaoi.spark
 
+import java.util.Properties
+
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.SparkException
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.slf4j.LoggerFactory
@@ -23,6 +26,27 @@ trait BaseFun {
     */
   def logging(str: String)={
     logger.info(str)
+  }
+
+  /**
+    * Get properties in resources
+    * @param key
+    */
+  def getProperties(key: String)={
+    val prop = new Properties()
+    val resourceStream = Thread.currentThread().getContextClassLoader.
+      getResourceAsStream("xiaoi.properties")
+    if(resourceStream == null) throw new SparkException("Not Found int properties")
+    try{
+      prop.load(resourceStream)
+      prop.getProperty(key)
+    }catch {
+      case e: Exception =>
+        throw new SparkException("Error loading properties", e)
+    }finally {
+      if(resourceStream != null)
+        resourceStream.close()
+    }
   }
 
   /**

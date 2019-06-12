@@ -25,6 +25,7 @@ libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provi
 libraryDependencies += ("org.apache.spark" %% "spark-hive" % sparkVersion % "provided" withSources())
 libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.10"
 
+libraryDependencies += "com.typesafe" % "config" % "1.3.0"
 libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.2.0" withSources()
 libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion % "provided" withSources()
 libraryDependencies += "com.hankcs" % "hanlp" % "portable-1.6.2"

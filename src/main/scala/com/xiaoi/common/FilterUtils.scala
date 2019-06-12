@@ -1,5 +1,7 @@
 package com.xiaoi.common
 
+import org.apache.spark.{SparkConf, SparkContext}
+
 /**
  * created by yang.bai@xiaoi.com 2015-07-30
  * 文本过滤工具

@@ -1,0 +1,115 @@
+package com.xiaoi.spark.question
+import com.xiaoi.common.{CalSimilar, DateUtil, InputPathUtil}
+import com.xiaoi.spark.{BaseOffline, MainBatch}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+
+object UnansSim extends BaseOffline {
+
+  val unansType = "0"
+  override def process(spark: SparkSession, params: MainBatch.Params)={
+
+    val yesterday = InputPathUtil.getTargetDate("0")
+    val recentPaths = InputPathUtil.getInputPathArray(
+      params.days, yesterday.plusDays(1), params.inputPath)
+    val yesterdayPath = InputPathUtil.getInputPathArray(
+      1, yesterday.plusDays(1), params.inputPath)
+
+//    val paths = Array("/production/guangda/data/ask/2019/05/01", "/production/guangda/data/ask/2019/05/02")
+    //read multiple data files
+    var df: DataFrame = spark.read.option("sep","|").csv(recentPaths(0))
+    for (i <- 1 until recentPaths.length) {
+      val df_tmp = spark.read.option("sep", "|").csv(recentPaths(i))
+      df = df.union(df_tmp)
+    }
+
+    val colNames = Seq("visit_time",
+      "session_id",
+      "user_id",
+      "question",
+      "question_type",
+      "answer",
+      "answer_type",
+      "faq_id",
+      "faq_name",
+      "keyword",
+      "city",
+      "brand",
+      "similarity",
+      "module_id",
+      "platform",
+      "ex",
+      "category",
+      "nopunctuation",
+      "segment",
+      "sentiment")
+
+    val unansSimCol = Seq("question", "segment").mkString(",")
+    val recentDF = df.toDF(colNames: _*)
+    require(recentDF.count() > 1)
+
+    val yesterdayDF = spark.
+      read.option("sep", "|").csv(yesterdayPath(0)).
+      toDF(colNames: _*)
+
+    import spark.implicits._
+    val yesUnans = yesterdayDF.
+      filter($"question_type" === unansType).
+      select(unansSimCol)
+    val recentUnans = recentDF.filter($"question_type" === unansType).
+      select(unansSimCol)
+
+
+
+    //计算未回答相似度，存储（未回答问题、最近未回答相似问、相似度、最近未回答问题类型）
+    val unansSim = yesterdayDF.
+      crossJoin(recentDF.toDF("recenUnans","recenSeg")).
+      select("quesiton", "recenUnans", "segment", "recentSeg").
+      as[SimCross].
+      map(x=> getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg))
+
+
+    val bc_yest = spark.sparkContext.broadcast(yesterdayDF.collect())
+    //昨天问句，最近问句，昨天问句分词，最近问句分词
+    val sim_ques = recentDF.
+      flatMap ( recenLine => {
+        bc_yest.value.map { yest_q =>
+          val yestQues = yest_q.getString(0)
+          val yestSeg = yest_q.getString(1)
+          val recenQues = recenLine.getString(0)
+          val recenSeg = recenLine.getString(1)
+          SimCross(yestQues, recenQues, yestSeg, recenSeg)
+        }})
+
+
+  }
+
+  case class RecenQues(ques: String, seg: String)
+  case class YestQues(ques: String, seg: String)
+  case class SimCross(yestQues: String,
+                      recenQues: String,
+                      yestSeg: String,
+                      recenSeg: String
+                     )
+  /**
+    * 计算两个句子测相似度
+    * @param q1
+    * @param q2
+    * @return
+    */
+  def getSimilarNew(q1: String, q2: String,
+                    q1_seg: String, q2_seg: String): Double = {
+    val sim1 = CalSimilar.calEditSimilarNew(
+      q1.replace(" ",""), q2.replace(" ",""))
+    val sim2 = CalSimilar.calJaccardSimilar(q1_seg,q2_seg, " ")
+    val maxSim = Math.max(sim1,sim2)
+    val minSim = Math.min(sim1,sim2)
+    val sim = if(minSim < 0.1 && maxSim<0.75){ //某一算法相似度过低时，取最小值
+      minSim
+    }else{
+      maxSim
+    }
+    sim
+  }
+
+
+}

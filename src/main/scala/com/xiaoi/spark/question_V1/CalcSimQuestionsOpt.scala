@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.{CalSimilar, HDFSUtil, LuceneUtil, Segment}
+import com.xiaoi.common.{CalSimilar, HDFSUtil, Segment}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -114,36 +114,6 @@ object CalcSimQuestionsOpt {
     sim_ques_all
   }
 
-  def luceneCalculate(recent_ques: RDD[(String, Int, String, Boolean, String)], yest_unans: RDD[(String,String,String)],
-                    shortQuesLen: Int, highSimilarity: Double, sc: SparkContext, luceneTopN: Int=100):RDD[(String, String, Double, String, String, Int, Boolean)] = {
-
-    val ques_cnt_faq_ans = recent_ques.map(x => (x._1, x._2, x._3, x._4)).distinct().cache()
-
-    val unans = yest_unans.map(x => (x._1, x._2)).cache()
-
-    //Test3
-    val requst_q = ques_cnt_faq_ans.map(x=>x._1)
-    val unans_q = unans.map(x=>x._1)
-    val lucKey = "simquestion"
-    val indexWriter = LuceneUtil.getIndexWriter
-    requst_q.collect().toList.foreach(x=>{
-      indexWriter.addDocument(LuceneUtil.setDoc(lucKey,x))
-    })
-    indexWriter.close()
-    val lcnres = LuceneUtil.qusQuerybyKey(lucKey,unans_q.collect().toList,luceneTopN)
-    //yest , recent , sim
-    val simQus = sc.parallelize(lcnres).map(x=>{
-      val sim = getSimilar(x._1,x._2)
-      (x._1,(x._2,sim))
-    }).cache
-    //recent，（yest，sim，yest_cnt）
-    val yestJoin = unans.join(simQus).map(x=>(x._2._2._1,(x._1,x._2._2._2,x._2._1)))
-    val allJoin =ques_cnt_faq_ans.map(x=>(x._1,(x._2,x._3,x._4))).join(yestJoin)
-      .map(x=>(x._2._2._1,x._1,x._2._2._2,x._2._2._3,x._2._1._2,x._2._1._1,x._2._1._3))
-
-    allJoin
-  }
-
   def getSimilar(q1: String, q2: String, stopFile: String = ""): Double = {
     val ed = CalSimilar.calEditSimilar(q1.replace(" ", ""), q2.replace(" ", ""))
     val seg1 = Segment.segment(q1, " ")
@@ -226,11 +196,8 @@ object CalcSimQuestionsOpt {
         val yest_unans = sc.broadcast(unans.collect().toList)
 
         //计算相似度,返回结果（昨天问句，最近问句，相似度，昨日频次，最近知识点，最近次数、最近已回答标志）
-        val sim_ques_all = if(useLucene) {
-          luceneCalculate(recent_ques, unans, shortQuesLen, highSimilarity, sc)
-        } else {
+        val sim_ques_all =
           execCalculate(recent_ques, yest_unans, domainMap, shortQuesLen, highSimilarity)
-        }
 
         //存储
         saveSimilarQues(sim_ques_all, outputPath, recommQuesPath, shortQuesLen, highSimilarity, similarity)

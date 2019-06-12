@@ -1,6 +1,6 @@
 package com.xiaoi.spark.etl_v1
 
-import com.xiaoi.common.{FilterUtils, HadoopOpsUtil, Segment}
+import com.xiaoi.common.{FilterUtils, HDFSUtil, Segment}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.DateTime
 import scopt.OptionParser
@@ -74,10 +74,6 @@ object Init {
     val domainPath = params.domainPath
     val testOutput = params.testOutput
     val targetDate = params.targetDate
-
-    HadoopOpsUtil.removeOrBackup(input, toMergeOutput)
-    HadoopOpsUtil.removeOrBackup(input, filterSegOutput)
-    HadoopOpsUtil.removeOrBackup(input, testOutput)
 
     val dataPath = if ("0".equals(targetDate)) input + "/" + (new DateTime()).plusDays(-1).toString("yyyy/MM/dd")
       else input + "/" + targetDate

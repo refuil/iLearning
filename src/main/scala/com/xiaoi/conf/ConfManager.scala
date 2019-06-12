@@ -6,7 +6,7 @@ import com.typesafe.config.ConfigFactory
   * 配置管理组件
   * Created by josh.ye on 6/19/17.
   */
-object ConfigurationManager extends Serializable{
+object ConfManager extends Serializable{
   private val config = ConfigFactory.load("xiaoi.properties")
 
   /**

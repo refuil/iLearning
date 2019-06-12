@@ -1,6 +1,6 @@
 package com.xiaoi.spark.etl_v1
 
-import com.xiaoi.common.HadoopOpsUtil
+import com.xiaoi.common.HDFSUtil
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.{DateTime, Days}
 import scopt.OptionParser
@@ -84,7 +84,7 @@ object DataSplit {
       val Array(year, month, day) = handleDay.split("-")
       val outputPath = askoutPath+ "/"+ year+ "/"+ month+ "/"+ day
 
-      HadoopOpsUtil.removeOrBackup(outputPath, outputPath)
+      HDFSUtil.removeOrBackup(outputPath, outputPath)
 
       etlOldData.filter(_._1.equals(handleDay)).map(_._2)
       .saveAsTextFile(outputPath)

@@ -8,6 +8,7 @@ object Constants {
   /**
     * Project Config
     */
+  val DATABASE = "database"
   val JDBC_DRIVER = "jdbc.driver"
   val JDBC_DATASOURCE_SIZE = "jdbc.datasource.size"
   val JDBC_URL = "jdbc.url"
@@ -16,6 +17,12 @@ object Constants {
   val JDBC_URL_PROD = "jdbc.url.prod"
   val JDBC_USER_PROD = "jdbc.user.prod"
   val JDBC_PASSWORD_PROD = "jdbc.password.prod"
+
+  /**
+    * ETL
+    */
+  val IMPORT_DAY = "import"
+  val OLD_IMPORT = "old_import"
 
   /**
     * Spark Job

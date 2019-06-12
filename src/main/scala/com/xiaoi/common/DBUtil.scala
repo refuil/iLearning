@@ -3,6 +3,10 @@ package com.xiaoi.common
 import java.sql.{Connection, DriverManager}
 import java.util.Properties
 
+import com.xiaoi.conf.ConfManager
+import com.xiaoi.constant.Constants
+import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
+
 import scala.collection.mutable.HashMap
 
 /**
@@ -17,7 +21,7 @@ object DBUtil  extends Serializable{
   }
 
   def getConnection(url:String,user:String,pwd:String):Connection={
-    Class.forName(ConfigurationManager.getString(Constants.JDBC_DRIVER))
+    Class.forName(ConfManager.getString(Constants.JDBC_DRIVER))
     val conn = DriverManager.getConnection(url,user,pwd)
     conn
   }
@@ -144,7 +148,7 @@ object DBUtil  extends Serializable{
     */
   def del(url: String, userName: String, pwd: String, sql: String): Boolean = {
     val prop = new java.util.Properties
-    prop.setProperty("driver", ConfigurationManager.getString(Constants.JDBC_DRIVER))
+    prop.setProperty("driver", ConfManager.getString(Constants.JDBC_DRIVER))
     prop.setProperty("url", url)
     prop.setProperty("username", userName)
     prop.setProperty("password", pwd)

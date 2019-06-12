@@ -1,7 +1,7 @@
 package com.xiaoi.spark.question
 
 import com.xiaoi.common.{DBUtil, DateUtil}
-import com.xiaoi.conf.ConfigurationManager
+import com.xiaoi.conf.ConfManager
 import com.xiaoi.constant.Constants
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
@@ -40,7 +40,7 @@ object Python_db_convert {
     val analysis_result = data
     //write to mysql
     val conn = DBUtil.getConnection(params.DBUrl, params.DBUser,
-      params.DBPassword, ConfigurationManager.getString(Constants.JDBC_DRIVER))
+      params.DBPassword, ConfManager.getString(Constants.JDBC_DRIVER))
     val deleteSQL = "delete from unans_semantic where CREATE_DATE = ?"
     val sql = "insert into unans_semantic (ID, CREATE_DATE, UNANS_QUES, WEIGHT, " +
       "RECOM_FAQ_ID, RECOM_FAQ, FAQ_PATH, RECOMM_FAQ_CNT, RELATED_CNT, STATUS, " +

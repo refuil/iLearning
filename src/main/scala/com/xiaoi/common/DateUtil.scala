@@ -1,8 +1,9 @@
 package com.xiaoi.common
 
 import java.text.SimpleDateFormat
-
-import scala.collection.mutable._
+import com.github.nscala_time.time.Imports._
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 
 object DateUtil {
 
@@ -112,8 +113,4 @@ object DateUtil {
     yesterday
   }
 
-  def main(args: Array[String])={
-
-    println(getWeekDayFromStr("2018-01-01 12:02:12"))
-  }
 }

@@ -1,6 +1,6 @@
 package com.xiaoi.spark.etl_v1
 
-import com.xiaoi.common.{FilterUtils, HadoopOpsUtil, Segment}
+import com.xiaoi.common.{FilterUtils, Segment}
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
 
@@ -70,9 +70,6 @@ object InitOldData {
     val stopFilePath = params.stopFilePath
     val domainPath = params.domainPath
 
-    HadoopOpsUtil.removeOrBackup(input, toMergeOutput)
-    HadoopOpsUtil.removeOrBackup(input, filterSegOutput)
-    HadoopOpsUtil.removeOrBackup(input, testOutput)
 
     //（问句，日志数组）
     val data = sc.textFile(input)

@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.conf.ConfigurationManager
+import com.xiaoi.conf.ConfManager
 import com.xiaoi.constant.Constants
 import com.xiaoi.spark.util.UnansQuesUtil
 import com.xiaoi.common.{HDFSUtil, InputPathUtil}
@@ -276,14 +276,14 @@ object GetUnanswered {
     val input_data = sc.textFile(InputPathUtil.getInputPath(analyzeDays, fromD.plusDays(1), params.inputPath)).cache()
     val unans = input_data.map(x => {
       val fields = x.split("\\|",-1)
-      val ori_ques = fields(ConfigurationManager.getInt(Constants.FIELD_QUESTION))
+      val ori_ques = fields(ConfManager.getInt(Constants.FIELD_QUESTION))
       val ques = UnansQuesUtil.quesSimplify(ori_ques)
-      val ans = fields(ConfigurationManager.getInt(Constants.FIELD_ANSWER))
-      val faq = fields(ConfigurationManager.getInt(Constants.FIELD_FAQ_NAME))
+      val ans = fields(ConfManager.getInt(Constants.FIELD_ANSWER))
+      val faq = fields(ConfManager.getInt(Constants.FIELD_FAQ_NAME))
       val ans_type = if (bc_excludeFaqs != null && bc_excludeFaqs.value.contains(faq)) "0"
       else if (bc_unclear != null && bc_unclear.value.exists(p => ans.contains(p))) "0"
-      else fields(ConfigurationManager.getInt(Constants.FIELD_ANSWER_TYPE))
-      val ex = if (fields.length < 16) null else fields(ConfigurationManager.getInt(Constants.FIELD_EX))
+      else fields(ConfManager.getInt(Constants.FIELD_ANSWER_TYPE))
+      val ex = if (fields.length < 16) null else fields(ConfManager.getInt(Constants.FIELD_EX))
       (ques, ans_type.toInt, ex)
     }).filter({ case (ques, ans_type, ex) => ansTypes.contains(ans_type) })
       .filter({ case (ques, ans_type, ex) =>

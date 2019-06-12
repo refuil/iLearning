@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.conf.ConfigurationManager
+import com.xiaoi.conf.ConfManager
 import com.xiaoi.constant.Constants
 import com.xiaoi.common.{DBUtil, DateUtil, HDFSUtil, StrUtil}
 import org.apache.spark.rdd.RDD
@@ -126,30 +126,30 @@ object WriteIntoDB {
 
       //判断是否是建议问，并且建议问的回答是否被点击
       if(suggestHit.get(unans_ques) != None) {
-        weight -= ConfigurationManager.getDouble(Constants.WEIGHT_SUGGEST_WEI)
+        weight -= ConfManager.getDouble(Constants.WEIGHT_SUGGEST_WEI)
         weight = math.max(weight, 0.1)
-      }else weight += ConfigurationManager.getDouble(Constants.WEIGHT_SUGGEST_WEI)
+      }else weight += ConfManager.getDouble(Constants.WEIGHT_SUGGEST_WEI)
 
       //判断是否转人工次数较多
       if(manualSet(unans_ques)){
-        weight += ConfigurationManager.getDouble(Constants.WEIGHT_MAN_WEI)
+        weight += ConfManager.getDouble(Constants.WEIGHT_MAN_WEI)
       }
 
       //判断是否有平台回答/不能回答反复情况
       if(platformQues.exists(_.contains(unans_ques))){
-        weight += ConfigurationManager.getDouble(Constants.WEIGHT_PLAT_WEI)
+        weight += ConfManager.getDouble(Constants.WEIGHT_PLAT_WEI)
       }
 
       //判断是否为聊天问题或者问题只包含一个汉字,降低对应的权重
       val chat_wei = chatInfo.getOrElse(unans_ques, 0)
       if(chat_wei == -1){
-        weight *= ConfigurationManager.getDouble(Constants.WEIGHT_CHAT_WEI_N1)
+        weight *= ConfManager.getDouble(Constants.WEIGHT_CHAT_WEI_N1)
       }else if(chat_wei == 0){
-        weight *= ConfigurationManager.getDouble(Constants.WEIGHT_CHAT_WEI_0)
+        weight *= ConfManager.getDouble(Constants.WEIGHT_CHAT_WEI_0)
       }else if(chat_wei == 1){
-        weight *= ConfigurationManager.getDouble(Constants.WEIGHT_CHAT_WEI_1)
+        weight *= ConfManager.getDouble(Constants.WEIGHT_CHAT_WEI_1)
       }else if(chat_wei == 2){
-        weight *= ConfigurationManager.getDouble(Constants.WEIGHT_CHAT_WEI_2)
+        weight *= ConfManager.getDouble(Constants.WEIGHT_CHAT_WEI_2)
       }
       if(unans_ques.length <= 2)
         weight = 0.1
@@ -222,7 +222,7 @@ object WriteIntoDB {
 
     //write to mysql
     val conn = DBUtil.getConnection(params.DBUrl, params.DBUser,
-      params.DBPassword, ConfigurationManager.getString(Constants.JDBC_DRIVER))
+      params.DBPassword, ConfManager.getString(Constants.JDBC_DRIVER))
     val deleteSQL = "delete from unans_semantic where CREATE_DATE = ?"
     val sql = "insert into unans_semantic (ID, CREATE_DATE, UNANS_QUES," +
       "WEIGHT, RECOM_FAQ_ID, RECOMM_FAQ, FAQ_PATH, RECOMM_SEMANTIC, RECOMM_CNT, STATUS," +
@@ -458,7 +458,7 @@ object WriteIntoDB {
     suggest.collect().toList.map(x => {
       val splits = x.trim().split("\\|", -1)
       val suggest_q = splits(0)
-      val hit = splits(1).toFloat > ConfigurationManager.getDouble(Constants.WEIGHT_SUGGEST_RATIO)
+      val hit = splits(1).toFloat > ConfManager.getDouble(Constants.WEIGHT_SUGGEST_RATIO)
       if(suggestHit.get(suggest_q) == None || suggestHit.getOrElse(suggest_q, false) == false){
         suggestHit += (suggest_q -> hit)
         if(hit){
@@ -529,12 +529,12 @@ object WriteIntoDB {
     * @return
     */
   def calWeight(line: String): (String, Double, Map[String, Int]) ={
-    val type_0 = ConfigurationManager.getDouble(Constants.WEIGHT_TYPE_0)
-    val type_11 = ConfigurationManager.getDouble(Constants.WEIGHT_TYPE_11)
-    val w_factor = ConfigurationManager.getDouble(Constants.WEIGHT_W_FACTOR)
-    val m_factor = ConfigurationManager.getDouble(Constants.WEIGHT_M_FACTOR)
-    val r_factor = ConfigurationManager.getDouble(Constants.WEIGHT_R_FACTOR)
-    val max_r_wei = ConfigurationManager.getDouble(Constants.WEIGHT_MAX_R_WEI)
+    val type_0 = ConfManager.getDouble(Constants.WEIGHT_TYPE_0)
+    val type_11 = ConfManager.getDouble(Constants.WEIGHT_TYPE_11)
+    val w_factor = ConfManager.getDouble(Constants.WEIGHT_W_FACTOR)
+    val m_factor = ConfManager.getDouble(Constants.WEIGHT_M_FACTOR)
+    val r_factor = ConfManager.getDouble(Constants.WEIGHT_R_FACTOR)
+    val max_r_wei = ConfManager.getDouble(Constants.WEIGHT_MAX_R_WEI)
 
     val list = line.split("\\|",-1)
     var weight = 0.0
@@ -690,7 +690,7 @@ object WriteIntoDB {
 
     //write to mysql
     val conn = DBUtil.getConnection(params.DBUrl, params.DBUser,
-      params.DBPassword, ConfigurationManager.getString(Constants.JDBC_DRIVER))
+      params.DBPassword, ConfManager.getString(Constants.JDBC_DRIVER))
     val deleteSQL = "delete from unans_related where CREATE_DATE = ?"
     val sql = "insert into unans_related (ID, CREATE_DATE, UNANS_QUES," +
       "RELATED_FAQ, MONTH_INFO, ANS_FLAG, SIMILARITY, STATUS)values (?,?,?,?,?,?,?,?)"
@@ -748,7 +748,7 @@ object WriteIntoDB {
 
     //write to mysql
     val conn = DBUtil.getConnection(params.DBUrl, params.DBUser,
-      params.DBPassword, ConfigurationManager.getString(Constants.JDBC_DRIVER))
+      params.DBPassword, ConfManager.getString(Constants.JDBC_DRIVER))
     val deleteSQL = "delete from unans_faq where CREATE_DATE = ?"
     val sql = "insert into unans_faq (ID, CREATE_DATE, UNANS_QUES," +
       "RECOM_FAQ_ID, RECOM_FAQ, FAQ_IDX, FAQ_PATH)values (?,?,?,?,?,?,?)"
@@ -795,7 +795,7 @@ object WriteIntoDB {
 
     //write to mysql
     val conn = DBUtil.getConnection(params.DBUrl, params.DBUser,
-      params.DBPassword, ConfigurationManager.getString(Constants.JDBC_DRIVER))
+      params.DBPassword, ConfManager.getString(Constants.JDBC_DRIVER))
     val deleteSQL = "delete from session_detail where CREATE_DATE = ?"
     val sql = "insert into session_detail(ID, CREATE_DATE, PARENT_ID, " +
       "SID, CONTENT) values (?,?,?,?,?)"

@@ -2,7 +2,7 @@ package com.xiaoi.spark
 
 import java.io.File
 
-import com.xiaoi.spark.question.MainBatch.Params
+import MainBatch.Params
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.ini4j.Ini
 
@@ -16,9 +16,9 @@ abstract class BaseOffline extends BaseFun with Serializable {
 
   /**
     * 实际处理逻辑，子类需要覆盖此方法
-    * @param lines
+    * @param spark
     */
-  def process(lines: Dataset[String], params: Params): Unit
+  def process(spark: SparkSession, params: Params): Unit
 
   /**
     * 加载Ini配置文件

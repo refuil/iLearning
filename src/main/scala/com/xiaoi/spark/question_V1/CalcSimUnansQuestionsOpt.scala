@@ -1,6 +1,6 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.{CalSimilar, HDFSUtil, LuceneUtil, Segment}
+import com.xiaoi.common.{CalSimilar, HDFSUtil, Segment}
 import com.xiaoi.spark.util.UnansQuesUtil
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -96,44 +96,6 @@ object CalcSimUnansQuestionsOpt {
       .saveAsTextFile(outputPath)
 
     uniqSimQues
-  }
-
-  def luceneCalculate(unans_type: RDD[(String,String,String)], yest: RDD[(String, String)],
-                       params: Params, sc: SparkContext, luceneTopN:Int=100):RDD[(String, String, Double, String)] = {
-    val similarity = params.similarity
-    val shortQuesLen = params.shortQuesLen
-    val highSimilarity = params.highSimilarity
-    val outputPath = params.outputPath
-
-    val unans = yest.map(x => x._1)
-    val recentUnans = unans_type.map(x=>(x._1, x._2))
-    val lucKey = "simquestion"
-    val indexWriter = LuceneUtil.getIndexWriter
-    unans_type.collect().toList.foreach(x=>{
-      indexWriter.addDocument(LuceneUtil.setDoc(lucKey,x._1))
-    })
-    indexWriter.close()
-    val lcnres = LuceneUtil.qusQuerybyKey(lucKey,unans.collect().toList,luceneTopN)
-    //yest , recent_q , rct_type
-    val lcnRdd = sc.parallelize(lcnres)
-    //lcnRdd.saveAsTextFile(outputPath+"/lucene")
-    //recent_q ,( yest , sim )
-    val sim_ques = lcnRdd.map(x=>{
-      val rct_sq = UnansQuesUtil.quesSimplify(x._2)
-      val sim = getSimilar(x._1,rct_sq)
-      (x._1,x._2,sim)
-    }).filter(x => if (x._1.length > shortQuesLen) x._3 > similarity else x._3 > highSimilarity)
-      .map(x=>(x._2,(x._1,x._3)))
-
-    //yest, recent_q, sim ,rct_type
-    val rctJoin = recentUnans.join(sim_ques).map(x=>{
-      (x._2._2._1,x._1,x._2._2._2,x._2._1)
-    })
-    //存储
-    rctJoin.map( x => x._1 + "|" + x._2 + "|" + x._3 + "|" + x._4)
-      .saveAsTextFile(outputPath)
-
-    rctJoin
   }
 
   /**
@@ -295,11 +257,8 @@ object CalcSimUnansQuestionsOpt {
     val bc_yest = sc.broadcast(unans.collect().toList)
 
     //计算未回答相似度，存储（未回答问题、最近未回答相似问、相似度、最近未回答问题类型）
-    val recentSimUnans = if(useLucene) {
-      luceneCalculate(unans_type, unans, params, sc)
-    }else {
+    val recentSimUnans =
       executeCalculate(unans_type, bc_yest, params, domainMap, sc)
-    }
 
     //取昨日未回答相似问并分组，添加索引index，存储两个结果 （index, ques） （index, cnt）
     unansSimQuesIndexNew(unans, recentSimUnans, similaryIndexPath, sc)

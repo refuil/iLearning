@@ -1,6 +1,6 @@
 package com.xiaoi.spark.etl_v1
 
-import com.xiaoi.common.HadoopOpsUtil
+import com.xiaoi.common.HDFSUtil
 import org.apache.spark.{SparkConf, SparkContext}
 import scopt.OptionParser
 
@@ -44,8 +44,8 @@ object MergeOldData {
     val mergeOutput = params.mergeOutput
     val classifyInput = params.classifyInput
 
-    if(HadoopOpsUtil.exists(mergeOutput, mergeOutput))
-      HadoopOpsUtil.removeDir(mergeOutput, mergeOutput)
+    if(HDFSUtil.exists(mergeOutput, mergeOutput))
+      HDFSUtil.removeDir(mergeOutput, mergeOutput)
 
     val classify = sc.textFile(classifyInput)
       .map(x => {

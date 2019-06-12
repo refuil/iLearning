@@ -2,31 +2,33 @@ package com.xiaoi.spark.etl
 
 import java.util.Properties
 
-import com.xiaoi.common.DateUtil
+import com.xiaoi.common.{DateUtil, HDFSUtil}
+import com.xiaoi.spark.BaseOffline
+import com.xiaoi.spark.MainBatch.Params
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.ini4j.Ini
+import com.xiaoi.constant.Constants._
 import org.joda.time.DateTime
-
 import scala.collection.mutable
 
 object ImportByDay extends BaseOffline {
 
   /**
     * 重写父类方法
-    * @param lines
+    * @param spark
     * @param params
     */
-  def process(lines: Dataset[String], params: Params) = {
+  def process(spark: SparkSession, params: Params) = {
     logging(s"this is import data")
 
     val ini = loadIni(params)
     val importType = params.data_type
     if(importType.contains("retail")){
       //    simulateRetailSource(lines.sparkSession)
-      readRetailDB(ini, importType, lines.sparkSession)
+      readRetailDB(ini, importType, spark)
     }else if(importType.contains("ecom")){
-      readEComFromCsv(params, lines.sparkSession)
+      readEComFromCsv(params, spark)
     }
 
   }
@@ -48,7 +50,7 @@ object ImportByDay extends BaseOffline {
         plusDays(-1).toString("yyyy/MM/dd")
 
       logger.info(s"e-com recom import userAction $startTime. $todayPath")
-      HadoopOpsUtil.removeDir(todayPath,todayPath)
+      HDFSUtil.removeDir(todayPath)
 //      ecomSaveByDay(spark,csv, startTime,endTime,todayPath)
       import spark.implicits._
       csv.filter($"time" >= startTime && $"time" <= endTime).
@@ -60,7 +62,7 @@ object ImportByDay extends BaseOffline {
       val csv = readActionCsv(spark, params.ecom_source_path).
           na.fill(value="0",cols=Array("model_id","type_id","cate","brand"))
       logger.info(s"ecom import user_action from $startDate to $endDate")
-      HadoopOpsUtil.removeDir(ecomSavePath,ecomSavePath)
+      HDFSUtil.removeDir(ecomSavePath)
       ecomSaveByDay(spark, csv,
         startDate, endDate,
         ecomSavePath)
