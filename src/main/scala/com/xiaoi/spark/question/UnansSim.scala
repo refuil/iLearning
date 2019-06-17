@@ -1,8 +1,8 @@
 package com.xiaoi.spark.question
 
-import com.xiaoi.common.{CalSimilar, DateUtil, InputPathUtil}
+import com.xiaoi.common._
 import com.xiaoi.spark.{BaseOffline, MainBatch}
-import com.xiaoi.common.UDF
+import com.xiaoi.spark.util.UnansQuesUtil
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 object UnansSim extends BaseOffline {
@@ -46,8 +46,60 @@ object UnansSim extends BaseOffline {
       "segment",
       "sentiment")
 
-    val unansSimCol = Seq("question", "segment").mkString(",")
-    val recentDF = df.toDF(colNames: _*)
+    //0, 11
+    val ansTypes = params.ansTypes.
+      replaceAll("\\s+", "").split(",").toList
+    // 不能认作回答良好的答案(包含:无法解答)的文件路径
+    val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
+      val unclear = spark.read.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
+      spark.sparkContext.broadcast(unclear)
+    } else null
+
+    val bc_ignored = if (HDFSUtil.exists(params.dfsUri, params.ignoredQuesPath)) {
+      val ignored_ques = spark.read.textFile(params.ignoredQuesPath)
+        .map(UnansQuesUtil.ignoreQuesSimplify(_))
+        .filter(_.length > 0).distinct.collect()
+      spark.sparkContext.broadcast(ignored_ques)
+    } else null
+
+    def unansFilter(ques: String, ans_type: String, ex: String) = {
+      ansTypes.contains(ans_type) &&
+        UnansQuesUtil.quesCheck(ques, ex) &&
+        (ques != null) && (ques.length > 1) &&
+        ques.length > 2  && //问句长度大于2
+     ignoreFilter(ques)
+    }
+
+    def ignoreFilter(ques: String) = {
+      if (bc_ignored != null) {
+        val short_q = UnansQuesUtil.ignoreQuesSimplify(ques)
+        !bc_ignored.value.contains(short_q)
+      }else true
+    }
+
+    def ansTypeForUnclear(ans: String) = {
+      if (bc_unclear != null &&
+        bc_unclear.value.exists(p => ans.contains(p))) "0"
+    }
+
+    import spark.implicits._
+
+//    val unansSimCol = Seq("question", "segment")
+    val recentDF = df.
+      toDF(colNames: _*).
+      map(x=> {
+        RobotLog(
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0),
+          x.getString(0),x.getString(0))
+    }).as[RobotLog]
     require(recentDF.count() > 1)
 
     val yesterdayDF = spark.
@@ -101,6 +153,26 @@ object UnansSim extends BaseOffline {
     sim_ques
   }
 
+  case class RobotLog(visit_time: String,
+                      session_id: String,
+                      user_id: String,
+                      question: String,
+                      question_type: String,
+                      answer: String,
+                      answer_type: String,
+                      faq_id: String,,
+                      faq_name: String,,
+                      keyword: String,
+                      city: String,
+                      brand: String,
+                      similarity: String,
+                      module_id: String,
+                      platform: String,
+                      ex: String,
+                      category: String,
+                      nopunctuation: String,
+                      segment: String,
+                      sentiment: String)
   case class RecenQues(ques: String, seg: String)
   case class YestQues(ques: String, seg: String)
   case class SimCross(yestQues: String,

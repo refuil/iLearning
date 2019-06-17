@@ -83,7 +83,12 @@ object MainBatch extends BaseFun{
                     ecom_source_path: String="",
                     ecom_old_start_date: String="",
                     ecom_old_end_date: String="",
-                    ecom_save_path: String=""
+                    ecom_save_path: String="",
+                    //question
+                    ansTypes: String = "0,11",
+                    unclearAnswerPath: String = "",
+                    dfsUri: String = "",
+                    ignoredQuesPath: String = ""
                    )
 
 
