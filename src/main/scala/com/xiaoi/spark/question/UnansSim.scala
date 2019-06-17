@@ -1,11 +1,14 @@
 package com.xiaoi.spark.question
+
 import com.xiaoi.common.{CalSimilar, DateUtil, InputPathUtil}
 import com.xiaoi.spark.{BaseOffline, MainBatch}
+import com.xiaoi.common.UDF
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 object UnansSim extends BaseOffline {
 
   val unansType = "0"
+
   override def process(spark: SparkSession, params: MainBatch.Params)={
 
     val yesterday = InputPathUtil.getTargetDate("0")
@@ -19,7 +22,7 @@ object UnansSim extends BaseOffline {
     var df: DataFrame = spark.read.option("sep","|").csv(recentPaths(0))
     for (i <- 1 until recentPaths.length) {
       val df_tmp = spark.read.option("sep", "|").csv(recentPaths(i))
-      df = df.union(df_tmp)
+      if(df_tmp.count > 1) df = df.union(df_tmp)
     }
 
     val colNames = Seq("visit_time",
@@ -50,27 +53,43 @@ object UnansSim extends BaseOffline {
     val yesterdayDF = spark.
       read.option("sep", "|").csv(yesterdayPath(0)).
       toDF(colNames: _*)
+    require(yesterdayDF.count > 1)
 
     import spark.implicits._
     val yesUnans = yesterdayDF.
-      filter($"question_type" === unansType).
-      select(unansSimCol)
-    val recentUnans = recentDF.filter($"question_type" === unansType).
-      select(unansSimCol)
+      filter($"answer_type" === unansType).
+      select("question","segment")
+    val recentUnans = recentDF.filter($"answer_type" === unansType).
+      select("question","segment")
 
 
-
+    import org.apache.spark.sql.functions._
     //计算未回答相似度，存储（未回答问题、最近未回答相似问、相似度、最近未回答问题类型）
-    val unansSim = yesterdayDF.
-      crossJoin(recentDF.toDF("recenUnans","recenSeg")).
-      select("quesiton", "recenUnans", "segment", "recentSeg").
+    val unansSim = yesUnans.filter(length($"question") > 5).
+      toDF("yestQues", "yestSeg").
+      crossJoin(recentUnans.filter(length($"question") > 5)
+        .toDF("recenQues","recenSeg")
+      ).
+//      select("question", "recenUnans", "segment", "recenSeg").
       as[SimCross].
-      map(x=> getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg))
+      map(x=> (x.yestQues, x.recenQues,
+        getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg)))
 
 
-    val bc_yest = spark.sparkContext.broadcast(yesterdayDF.collect())
+    calUnansSim(spark, yesUnans, recentUnans)
+
+  }
+
+  /**
+    * unansQues-sim,另外一种flatmap的写法
+    */
+  def calUnansSim(spark: SparkSession,
+                  yesUnans: DataFrame,
+                  recentUnans: DataFrame)={
+    import spark.implicits._
+    val bc_yest = spark.sparkContext.broadcast(yesUnans.collect())
     //昨天问句，最近问句，昨天问句分词，最近问句分词
-    val sim_ques = recentDF.
+    val sim_ques = recentUnans.
       flatMap ( recenLine => {
         bc_yest.value.map { yest_q =>
           val yestQues = yest_q.getString(0)
@@ -79,8 +98,7 @@ object UnansSim extends BaseOffline {
           val recenSeg = recenLine.getString(1)
           SimCross(yestQues, recenQues, yestSeg, recenSeg)
         }})
-
-
+    sim_ques
   }
 
   case class RecenQues(ques: String, seg: String)
