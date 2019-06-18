@@ -7,8 +7,6 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 object UnansSim extends BaseOffline {
 
-  val unansType = "0"
-
   override def process(spark: SparkSession, params: MainBatch.Params)={
 
     val yesterday = InputPathUtil.getTargetDate("0")
@@ -24,6 +22,8 @@ object UnansSim extends BaseOffline {
       val df_tmp = spark.read.option("sep", "|").csv(recentPaths(i))
       if(df_tmp.count > 1) df = df.union(df_tmp)
     }
+
+    import spark.implicits._
 
     val colNames = Seq("visit_time",
       "session_id",
@@ -49,6 +49,7 @@ object UnansSim extends BaseOffline {
     //0, 11
     val ansTypes = params.ansTypes.
       replaceAll("\\s+", "").split(",").toList
+
     // 不能认作回答良好的答案(包含:无法解答)的文件路径
     val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
       val unclear = spark.read.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
@@ -84,43 +85,46 @@ object UnansSim extends BaseOffline {
 
     import spark.implicits._
 
+    def robotLogDataset(df: DataFrame)={
+      df.toDF(colNames: _*).
+        map(x=> {
+          RobotLog(
+            x.getString(0),x.getString(1),
+            x.getString(2),x.getString(3),
+            x.getString(4),x.getString(5),
+            x.getString(6),x.getString(7),
+            x.getString(8),x.getString(9),
+            x.getString(10),x.getString(11),
+            x.getString(12),x.getString(13),
+            x.getString(14),x.getString(15),
+            x.getString(16),x.getString(17),
+            x.getString(18),x.getString(19))
+        }).as[RobotLog]
+    }
+
 //    val unansSimCol = Seq("question", "segment")
-    val recentDF = df.
-      toDF(colNames: _*).
-      map(x=> {
-        RobotLog(
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0),
-          x.getString(0),x.getString(0))
-    }).as[RobotLog]
-    require(recentDF.count() > 1)
+    val recentDS = robotLogDataset(df).
+      filter(x=> unansFilter(x.question, x.answer_type, x.ex))
+    require(recentDS.count() > 1)
 
-    val yesterdayDF = spark.
-      read.option("sep", "|").csv(yesterdayPath(0)).
-      toDF(colNames: _*)
-    require(yesterdayDF.count > 1)
+    val yesterdayDS = robotLogDataset(spark.
+      read.option("sep", "|").csv(yesterdayPath(0))).
+    filter(x=> unansFilter(x.question, x.answer_type, x.ex))
+    require(yesterdayDS.count > 1)
 
-    import spark.implicits._
-    val yesUnans = yesterdayDF.
-      filter($"answer_type" === unansType).
+
+    val yesUnans = yesterdayDS.
       select("question","segment")
-    val recentUnans = recentDF.filter($"answer_type" === unansType).
+    val recentUnans = recentDS.
       select("question","segment")
 
 
     import org.apache.spark.sql.functions._
     //计算未回答相似度，存储（未回答问题、最近未回答相似问、相似度、最近未回答问题类型）
-    val unansSim = yesUnans.filter(length($"question") > 5).
+    val unansSim = yesUnans.
       toDF("yestQues", "yestSeg").
-      crossJoin(recentUnans.filter(length($"question") > 5)
-        .toDF("recenQues","recenSeg")
+      crossJoin(recentUnans.
+        toDF("recenQues","recenSeg")
       ).
 //      select("question", "recenUnans", "segment", "recenSeg").
       as[SimCross].
