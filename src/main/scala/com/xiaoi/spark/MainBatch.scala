@@ -64,6 +64,9 @@ object MainBatch extends BaseFun{
         .action((x, c) => c.copy(data_type = x))
       opt[Int]("days")
         .action((x, c) => c.copy(days=x))
+      opt[String]("ignoredQuesPath")
+        .action((x, c) => c.copy(ignoredQuesPath = x))
+
     }
 
     parser.parse(args, defaultParams).map {
@@ -86,9 +89,14 @@ object MainBatch extends BaseFun{
                     ecom_save_path: String="",
                     //question
                     ansTypes: String = "0,11",
-                    unclearAnswerPath: String = "",
+                    unclearAnswerPath: String = "/production/guangda/config/unclear_answer",
                     dfsUri: String = "",
-                    ignoredQuesPath: String = ""
+                    ignoredQuesPath: String = "/production/guangda/config",
+                    minQuesLen: Int = 2,
+                    maxQuesLen: Int = 40,
+                    similarity: Double = 0.5,
+                    shortQuesLen: Int = 5,
+                    highSimilarity: Double = 0.6
                    )
 
 

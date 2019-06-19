@@ -5,6 +5,8 @@ import com.xiaoi.spark.{BaseOffline, MainBatch}
 import com.xiaoi.spark.util.UnansQuesUtil
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
+import scala.collection.{immutable, mutable}
+
 object UnansSim extends BaseOffline {
 
   override def process(spark: SparkSession, params: MainBatch.Params)={
@@ -18,6 +20,7 @@ object UnansSim extends BaseOffline {
 //    val paths = Array("/production/guangda/data/ask/2019/05/01", "/production/guangda/data/ask/2019/05/02")
     //read multiple data files
     var df: DataFrame = spark.read.option("sep","|").csv(recentPaths(0))
+    require(df.count > 1)
     for (i <- 1 until recentPaths.length) {
       val df_tmp = spark.read.option("sep", "|").csv(recentPaths(i))
       if(df_tmp.count > 1) df = df.union(df_tmp)
@@ -52,7 +55,8 @@ object UnansSim extends BaseOffline {
 
     // 不能认作回答良好的答案(包含:无法解答)的文件路径
     val bc_unclear = if (HDFSUtil.exists(params.dfsUri, params.unclearAnswerPath)) {
-      val unclear = spark.read.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
+      val unclear = spark.read.textFile(params.unclearAnswerPath).
+        filter(_.trim.length > 0).collect()
       spark.sparkContext.broadcast(unclear)
     } else null
 
@@ -65,8 +69,9 @@ object UnansSim extends BaseOffline {
 
     def unansFilter(ques: String, ans_type: String, ex: String) = {
       ansTypes.contains(ans_type) &&
-        UnansQuesUtil.quesCheck(ques, ex) &&
-        (ques != null) && (ques.length > 1) &&
+        UnansQuesUtil.quesCheck(ques, ex, params.minQuesLen, params.maxQuesLen) &&
+        (ques != null) &&
+        (ques.length > 1) &&
         ques.length > 2  && //问句长度大于2
      ignoreFilter(ques)
     }
@@ -119,7 +124,6 @@ object UnansSim extends BaseOffline {
       select("question","segment")
 
 
-    import org.apache.spark.sql.functions._
     //计算未回答相似度，存储（未回答问题、最近未回答相似问、相似度、最近未回答问题类型）
     val unansSim = yesUnans.
       toDF("yestQues", "yestSeg").
@@ -129,10 +133,49 @@ object UnansSim extends BaseOffline {
 //      select("question", "recenUnans", "segment", "recenSeg").
       as[SimCross].
       map(x=> (x.yestQues, x.recenQues,
-        getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg)))
+        getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg))).
+      as[UnansSim].
+      filter(x => {
+        val lengthCompare = x.yest.length.toDouble / x.recen.length.toDouble
+        if (x.yest.length < params.shortQuesLen) {
+          x.sim > params.highSimilarity
+        } else if (lengthCompare < 0.5 || lengthCompare > 2) {
+          //两个问句长度相差一倍时，相似度阈值调高
+          x.sim > 0.8
+        } else {
+          x.sim > 0.5
+        }
+      })
+
+    //将相似问存储HashSet
+    val quesSimilar = unansSim.map(x=>(x.yest, x.recen)).aggregateByKey(mutable.HashSet[String]())(
+      (set, v) => set += v ,
+      (set1, set2) => set1 ++= set2
+    ).map(x=>(x._1, x._2, x._2.size)).sortBy(_._3).cache()
+
+    val bcQuesSimlar = sc.broadcast(quesSimilar.collect().toList)
+
+    //判断当前问句是否是其他问句的相似问，并且当前问句的相似问数量更少，则删除当前问句
+    val quesCnt = quesSimilar.map(x=>(x._1, x._3)).distinct().cache
+    val bcQuesCnt = sc.broadcast(quesCnt.collect.toList)
+
+    val filters = quesCnt.flatMap(x=>{
+      bcQuesSimlar.value.map(y=>{
+        if(y._2.contains(x._1) && !y._1.equals(x._1) && y._3 >= x._2){
+          (immutable.HashSet(x._1,y._1).mkString("|"), x._1)
+        } else {
+          ("","")
+        }
+      }).filter(_._1.length > 0)
+    }).foldByKey("")((a,b)=> b).map(_._2).distinct().collect().toList
+
+    val uniqSimQues = unansSim.filter(x=> !filters.contains(x._1)).cache()
+
+    uniqSimQues.map(x => List(x._1, x._2, x._3, x._4).mkString("|"))
+      .saveAsTextFile(outputPath)
 
 
-    calUnansSim(spark, yesUnans, recentUnans)
+//    calUnansSim(spark, yesUnans, recentUnans)
 
   }
 
@@ -164,8 +207,8 @@ object UnansSim extends BaseOffline {
                       question_type: String,
                       answer: String,
                       answer_type: String,
-                      faq_id: String,,
-                      faq_name: String,,
+                      faq_id: String,
+                      faq_name: String,
                       keyword: String,
                       city: String,
                       brand: String,
@@ -184,6 +227,7 @@ object UnansSim extends BaseOffline {
                       yestSeg: String,
                       recenSeg: String
                      )
+  case class UnansSim(yest: String,recen: String, sim:Double)
   /**
     * 计算两个句子测相似度
     * @param q1
