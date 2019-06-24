@@ -145,19 +145,22 @@ object UnansSim extends BaseOffline {
         } else {
           x.sim > 0.5
         }
-      })
+      }).filter(x=> x.yest != x.recen)
+
+    val groupSim = unansSim.map(x=>(x.yest,(x.recen,x.sim))).
+      groupByKey{case(ye,_)=>ye}.
+      mapGroups{case(ye, arr) => arr}.flatMap(x=>x)
 
     //将相似问存储HashSet
-    val quesSimilar = unansSim.map(x=>(x.yest, x.recen)).aggregateByKey(mutable.HashSet[String]())(
-      (set, v) => set += v ,
-      (set1, set2) => set1 ++= set2
-    ).map(x=>(x._1, x._2, x._2.size)).sortBy(_._3).cache()
+    val quesSimilar = unansSim.map(x=>(x.yest, x.recen)).
+      groupByKey{case(ye, _) => ye}.
+      mapGroups{case(ye, arr) => (ye, arr.toList.map(_._2), arr.size)}.cache()
 
-    val bcQuesSimlar = sc.broadcast(quesSimilar.collect().toList)
+    val bcQuesSimlar = spark.sparkContext.broadcast(quesSimilar.collect().toList)
 
     //判断当前问句是否是其他问句的相似问，并且当前问句的相似问数量更少，则删除当前问句
     val quesCnt = quesSimilar.map(x=>(x._1, x._3)).distinct().cache
-    val bcQuesCnt = sc.broadcast(quesCnt.collect.toList)
+    val bcQuesCnt = spark.sparkContext.broadcast(quesCnt.collect.toList)
 
     val filters = quesCnt.flatMap(x=>{
       bcQuesSimlar.value.map(y=>{
@@ -167,12 +170,11 @@ object UnansSim extends BaseOffline {
           ("","")
         }
       }).filter(_._1.length > 0)
-    }).foldByKey("")((a,b)=> b).map(_._2).distinct().collect().toList
+    }).map(_._2).distinct().collect().toList
 
-    val uniqSimQues = unansSim.filter(x=> !filters.contains(x._1)).cache()
+    val uniqSimQues = unansSim.filter(x=> !filters.contains(x.yest)).cache()
 
-    uniqSimQues.map(x => List(x._1, x._2, x._3, x._4).mkString("|"))
-      .saveAsTextFile(outputPath)
+    uniqSimQues.write.save(params.ecom_save_path)
 
 
 //    calUnansSim(spark, yesUnans, recentUnans)
