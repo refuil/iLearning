@@ -1,0 +1,218 @@
+iLearning
+
+
+import sqlContext.implicits._
+val df1 = Seq(
+  (1, "aa", java.sql.Date.valueOf("2010-01-01")),
+  (2, "aa", java.sql.Date.valueOf("2010-02-01")),
+  (3, "bb", java.sql.Date.valueOf("2010-02-01"))
+).toDF("a", "b", "c")
+
+val df2 = Seq(
+  (11, "aa"),
+  (22, "aa"),
+  (33, "bb")
+).toDF("a", "b")
+
+另外一种flatmap的写法
+
+14-06-2019 04:00:45 CST FilterData INFO - Command: spark-submit --master spark://jh-a0-001:7077 --driver-java-options "-XX:MaxPermSize=256M" --conf "spark.executor.extraJavaOptions=-XX:MaxPermSize=256M -XX:-UseGCOverheadLimit" --total-executor-cores 16 --driver-memory 2g --executor-memory 5g --class com.xiaoi.spark.fpm.ToManualPreprocess --jars /opt/xiaoi/thirdparty/libs/joda-time-2.8.2.jar,/opt/xiaoi/thirdparty/libs/ansj_seg-2.0.8.jar,/opt/xiaoi/thirdparty/libs/nlp-lang-0.3.jar,/opt/xiaoi/thirdparty/libs/scopt_2.10-3.3.0.jar,/opt/xiaoi/thirdparty/libs/nscala-time_2.10-2.2.0.jar /xiaoi/ligz/spark/frequentpatternmining_2.10-0.1.jar -i  /production/nlp/new_data/ask --days 30 -o  /production/nlp/output/to_manual/month/session_faq_ids --faqrank /production/nlp/output/to_manual/month/faq_rank --sessionFaqsPath  /production/nlp/output/to_manual/month/session_faqs  --dfsUri hdfs://jh-a0-001:9000 --sidIdx 1 --timeIdx 0 --faqIdx 8 --removeMode true 
+
+import com.xiaoi.common._
+import com.xiaoi.common.{CalSimilar, DateUtil, InputPathUtil}
+import com.xiaoi.spark.{BaseOffline, MainBatch}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import com.xiaoi.spark.util.UnansQuesUtil
+  case class Params(statType: String = "ImportOldData",
+                    dateLevel: String = "day",
+                    inputPath: String = "/experiment/josh/data/guangda/data/ask",
+                    configIni: String = "",
+                    data_type: String = "",
+                    days:Int=30,
+                    ecom_source_path: String="",
+                    ecom_old_start_date: String="",
+                    ecom_old_end_date: String="",
+                    ecom_save_path: String="",
+                    //question
+                    ansTypes: String = "0,11",
+                    unclearAnswerPath: String = "/production/guangda/config/unclear_answer",
+                    dfsUri: String = "",
+                    ignoredQuesPath: String = "/production/guangda/config",
+                    minQuesLen: Int = 2,
+                    maxQuesLen: Int = 40,
+                    similarity: Double = 0.5,
+                    shortQuesLen: Int = 5,
+                    highSimilarity: Double = 0.6
+                   )
+
+  case class RobotLog(visit_time: String,
+                      session_id: String,
+                      user_id: String,
+                      question: String,
+                      question_type: String,
+                      answer: String,
+                      answer_type: String,
+                      faq_id: String,
+                      faq_name: String,
+                      keyword: String,
+                      city: String,
+                      brand: String,
+                      similarity: String,
+                      module_id: String,
+                      platform: String,
+                      ex: String,
+                      category: String,
+                      nopunctuation: String,
+                      segment: String,
+                      sentiment: String)
+
+case class RecenQues(ques: String, seg: String)
+  case class YestQues(ques: String, seg: String)
+  case class SimCross(yestQues: String,
+                      recenQues: String,
+                      yestSeg: String,
+                      recenSeg: String
+                     )
+
+val params = new Params
+  val unansType = "0"
+ val yesterday = InputPathUtil.getTargetDate("0")
+    val recentPaths = InputPathUtil.getInputPathArray(
+      params.days, yesterday.plusDays(1), params.inputPath)
+    val yesterdayPath = InputPathUtil.getInputPathArray(
+      1, yesterday.plusDays(1), params.inputPath)
+
+var df: DataFrame = spark.read.option("sep","|").csv(recentPaths(0))
+    for (i <- 1 until recentPaths.length) {
+      val df_tmp = spark.read.option("sep", "|").csv(recentPaths(i))
+      if(df_tmp.count > 1) df = df.union(df_tmp)
+    }
+
+    val colNames = Seq("visit_time",
+      "session_id",
+      "user_id",
+      "question",
+      "question_type",
+      "answer",
+      "answer_type",
+      "faq_id",
+      "faq_name",
+      "keyword",
+      "city",
+      "brand",
+      "similarity",
+      "module_id",
+      "platform",
+      "ex",
+      "category",
+      "nopunctuation",
+      "segment",
+      "sentiment")
+
+       val ansTypes = params.ansTypes.
+      replaceAll("\\s+", "").split(",").toList
+
+    // 不能认作回答良好的答案(包含:无法解答)的文件路径
+    val bc_unclear = if (HDFSUtil.exists(params.unclearAnswerPath, params.unclearAnswerPath)) {
+      val unclear = spark.read.textFile(params.unclearAnswerPath).filter(_.trim.length > 0).collect()
+      spark.sparkContext.broadcast(unclear)
+    } else null
+
+    val bc_ignored = if (HDFSUtil.exists(params.ignoredQuesPath, params.ignoredQuesPath)) {
+      val ignored_ques = spark.read.textFile(params.ignoredQuesPath)
+        .map(UnansQuesUtil.ignoreQuesSimplify(_))
+        .filter(_.length > 0).distinct.collect()
+      spark.sparkContext.broadcast(ignored_ques)
+    } else null
+
+    def ignoreFilter(ques: String) = {
+      if (bc_ignored != null) {
+        val short_q = UnansQuesUtil.ignoreQuesSimplify(ques)
+        !bc_ignored.value.contains(short_q)
+      }else true
+    }
+
+    def unansFilter(ques: String, ans_type: String, ex: String) = {
+      ansTypes.contains(ans_type) &&
+        UnansQuesUtil.quesCheck(ques, ex, params.minQuesLen, params.maxQuesLen) &&
+        (ques != null) && (ques.length > 1) &&
+        ques.length > 2  && //问句长度大于2
+     ignoreFilter(ques)
+    }
+
+
+
+    def ansTypeForUnclear(ans: String) = {
+      if (bc_unclear != null &&
+        bc_unclear.value.exists(p => ans.contains(p))) "0"
+    }
+
+    import spark.implicits._
+
+    def robotLogDataset(df: DataFrame)={
+      df.toDF(colNames: _*).
+        map(x=> {
+          RobotLog(
+            x.getString(0),x.getString(1),
+            x.getString(2),x.getString(3),
+            x.getString(4),x.getString(5),
+            x.getString(6),x.getString(7),
+            x.getString(8),x.getString(9),
+            x.getString(10),x.getString(11),
+            x.getString(12),x.getString(13),
+            x.getString(14),x.getString(15),
+            x.getString(16),x.getString(17),
+            x.getString(18),x.getString(19))
+        }).as[RobotLog]
+    }
+
+//    val unansSimCol = Seq("question", "segment")
+    val recentDS = robotLogDataset(df).
+      filter(x=> unansFilter(x.question, x.answer_type, x.ex))
+    require(recentDS.count() > 1)
+
+    val yesterdayDS = robotLogDataset(spark.
+      read.option("sep", "|").csv(yesterdayPath(0))).
+    filter(x=> unansFilter(x.question, x.answer_type, x.ex))
+    require(yesterdayDS.count > 1)
+
+
+    val yesUnans = yesterdayDS.
+      select("question","segment")
+    val recentUnans = recentDS.
+      select("question","segment")
+
+def getSimilarNew(q1: String, q2: String,
+                    q1_seg: String, q2_seg: String): Double = {
+    val sim1 = CalSimilar.calEditSimilarNew(
+      q1.replace(" ",""), q2.replace(" ",""))
+    val sim2 = CalSimilar.calJaccardSimilar(q1_seg,q2_seg, " ")
+    val maxSim = Math.max(sim1,sim2)
+    val minSim = Math.min(sim1,sim2)
+    val sim = if(minSim < 0.1 && maxSim<0.75){ //某一算法相似度过低时，取最小值
+      minSim
+    }else{
+      maxSim
+    }
+    sim
+  }
+
+//计算未回答相似度，存储（未回答问题、最近未回答相似问、相似度、最近未回答问题类型）
+    val unansSim = yesUnans.
+      toDF("yestQues", "yestSeg").
+      crossJoin(recentUnans.
+        toDF("recenQues","recenSeg")
+      ).
+      as[SimCross].
+      map(x=> (x.yestQues, x.recenQues,
+        getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg))).
+        filter(x => {
+        val lengthCompare = x._1.length.toDouble / x._2.length.toDouble
+        if (x._1.length < params.shortQuesLen) {
+          x._3 > params.highSimilarity
+        } else if (lengthCompare < 0.5 || lengthCompare > 2) { //两个问句长度相差一倍时，相似度阈值调高
+          x._3 > 0.8
+        } else {
+          x._3 > 0.5
+        }
+      }) 
