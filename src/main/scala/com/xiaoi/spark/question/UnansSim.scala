@@ -132,7 +132,7 @@ object UnansSim extends BaseOffline {
       ).
 //      select("question", "recenUnans", "segment", "recenSeg").
       as[SimCross].
-      map(x=> (x.yestQues, x.recenQues,
+      map(x=> UnansSim(x.yestQues, x.recenQues,
         getSimilarNew(x.yestQues, x.recenQues, x.yestSeg, x.recenSeg))).
       as[UnansSim].
       filter(x => {
@@ -145,11 +145,7 @@ object UnansSim extends BaseOffline {
         } else {
           x.sim > 0.5
         }
-      }).filter(x=> x.yest != x.recen)
-
-    val groupSim = unansSim.map(x=>(x.yest,(x.recen,x.sim))).
-      groupByKey{case(ye,_)=>ye}.
-      mapGroups{case(ye, arr) => arr}.flatMap(x=>x)
+      })
 
     //将相似问存储HashSet
     val quesSimilar = unansSim.map(x=>(x.yest, x.recen)).
@@ -160,8 +156,6 @@ object UnansSim extends BaseOffline {
 
     //判断当前问句是否是其他问句的相似问，并且当前问句的相似问数量更少，则删除当前问句
     val quesCnt = quesSimilar.map(x=>(x._1, x._3)).distinct().cache
-    val bcQuesCnt = spark.sparkContext.broadcast(quesCnt.collect.toList)
-
     val filters = quesCnt.flatMap(x=>{
       bcQuesSimlar.value.map(y=>{
         if(y._2.contains(x._1) && !y._1.equals(x._1) && y._3 >= x._2){
@@ -174,8 +168,15 @@ object UnansSim extends BaseOffline {
 
     val uniqSimQues = unansSim.filter(x=> !filters.contains(x.yest)).cache()
 
-    uniqSimQues.write.save(params.ecom_save_path)
+//    val groupSim = uniqSimQues.
+//      map(x=>(x.yest,(x.recen,x.sim))).
+//      groupByKey{case(ye,_)=>ye}.
+//      mapGroups{case(ye, arr) => (ye, arr.map(_._2).toList)}
 
+    uniqSimQues.write.format("parquet").save(params.ecom_save_path)
+
+    //test for reading parquet
+    val d = spark.read.format("parquet").load("").as[UnansSim]
 
 //    calUnansSim(spark, yesUnans, recentUnans)
 

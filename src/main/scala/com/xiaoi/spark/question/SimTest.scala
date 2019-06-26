@@ -12,11 +12,13 @@ object SimTest {
 
     import spark.implicits._
 
-    val yesUnans = spark.read.csv(yesterdayPath).
+    val yesUnans = spark.read.option("sep", "|").
+      csv(yesterdayPath).
       map(x=> x.getString(0)).
       map{case q => (q, Segment.jieba_analysis(q, " "))}.
       toDF("question","segment")
-    val recentUnans = spark.read.csv(recentPath).
+    val recentUnans = spark.read.option("sep","|").
+      csv(recentPath).
       map(x=> x.getString(0)).
       map{case q => (q, Segment.jieba_analysis(q, " "))}.
       toDF("question","segment")
